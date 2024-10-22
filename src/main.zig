@@ -1,6 +1,6 @@
 const std = @import("std");
 const known_folders = @import("known-folders");
-const Timer = @import("timer.zig").Timer;
+const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 
 const except = std.testing.expect;
 
@@ -11,20 +11,13 @@ const AppOptions = struct {
     format: [*]u8,
 };
 
-fn say_hello(timer: *Timer) void {
-    std.log.debug("Hello to timer from on_cycle callback! {}", .{timer});
-}
-
-fn timer_loop(timer: *Timer) !void {
-    while (true) {
-        try timer.sleep_reduce_second(say_hello);
-        std.debug.print("{}\n", .{timer});
-    }
-}
-
 pub fn main() !void {
-    var timer = Timer.create();
-    _ = try std.Thread.spawn(.{}, timer_loop, .{&timer});
+    var timer = PomodoroTimer.create();
+    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
+    try runServer();
+}
+
+fn runServer() !void {
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
     const gpa = gpa_alloc.allocator();
@@ -61,5 +54,16 @@ pub fn main() !void {
         defer gpa.free(response);
 
         try client_writer.writeAll(response);
+    }
+}
+
+fn say_hello(timer: *PomodoroTimer) void {
+    std.log.debug("Hello to timer from on_cycle callback! {}", .{timer});
+}
+
+fn timerLoop(timer: *PomodoroTimer) !void {
+    while (true) {
+        try timer.tick(say_hello);
+        std.debug.print("{}\n", .{timer});
     }
 }

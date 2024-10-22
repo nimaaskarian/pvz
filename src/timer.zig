@@ -1,39 +1,39 @@
 const std = @import("std");
 const except = std.testing.expect;
 
-const TimerState = enum { Pomodoro, ShortBreak, LongBreak };
+const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
-const default_timer = Timer{
+const DEFAULT_TIMER = PomodoroTimer{
     .paused = false,
     .seconds = 0,
-    .pomodoro_minutes = 25,
-    .short_break_minutes = 5,
-    .long_break_minutes = 30,
-    .pomodoro_count = 25,
-    .state = TimerState.Pomodoro,
+    .pomodoro_seconds = 25 * std.time.s_per_min,
+    .short_break_seconds = 5 * std.time.s_per_min,
+    .long_break_seconds = 30 * std.time.s_per_min,
+    .session_count = 4,
+    .mode = TimerMode.Pomodoro,
 };
 
-pub const Timer = struct {
+pub const PomodoroTimer = struct {
     paused: bool,
     seconds: usize,
-    state: TimerState,
-    pomodoro_count: u16,
-    long_break_minutes: u16,
-    short_break_minutes: u16,
-    pomodoro_minutes: u16,
+    mode: TimerMode,
+    session_count: u16,
+    long_break_seconds: u16,
+    short_break_seconds: u16,
+    pomodoro_seconds: u16,
 
-    pub fn create() Timer {
-        var timer = default_timer;
-        timer.set_seconds_based_on_type();
+    pub fn create() PomodoroTimer {
+        var timer = DEFAULT_TIMER;
+        timer.update_duration();
         return timer;
     }
 
-    pub fn sleep_reduce_second(self: *Timer, comptime on_cycle: fn (timer: *Timer) void) !void {
-        std.time.sleep(@intCast(std.time.ns_per_s));
+    pub fn tick(self: *PomodoroTimer, comptime on_cycle: fn (timer: *PomodoroTimer) void) !void {
+        std.time.sleep(std.time.ns_per_s);
         if (self.seconds == 0) {
             on_cycle(self);
-            try self.cycle_type();
-            self.set_seconds_based_on_type();
+            try self.cycle_mode();
+            self.update_duration();
         } else {
             if (!self.paused) {
                 self.seconds -= 1;
@@ -41,41 +41,40 @@ pub const Timer = struct {
         }
     }
 
-    pub fn cycle_type(self: *Timer) !void {
-        try except(self.pomodoro_count >= 0);
-        switch (self.state) {
-            TimerState.LongBreak => {
+    fn cycle_mode(self: *PomodoroTimer) !void {
+        try except(self.session_count >= 0);
+        switch (self.mode) {
+            TimerMode.LongBreak => {
                 std.log.debug("long break end. reseting", .{});
-                self.* = default_timer;
+                self.* = DEFAULT_TIMER;
             },
-            TimerState.ShortBreak => {
+            TimerMode.ShortBreak => {
                 std.log.debug("cycle to pomodoro", .{});
-                self.state = TimerState.Pomodoro;
+                self.mode = TimerMode.Pomodoro;
             },
-            TimerState.Pomodoro => {
+            TimerMode.Pomodoro => {
                 std.log.debug("cycle to short break", .{});
-                self.state = TimerState.ShortBreak;
-                self.pomodoro_count -= 1;
+                self.mode = TimerMode.ShortBreak;
+                self.session_count -= 1;
             },
         }
-        if (self.pomodoro_count <= 0) {
+        if (self.session_count <= 0) {
             std.log.debug("count=0 -> cycle to long break", .{});
-            self.state = TimerState.LongBreak;
+            self.mode = TimerMode.LongBreak;
             return;
         }
     }
 
-    fn set_seconds_based_on_type(self: *Timer) void {
-        const minutes = switch (self.state) {
-            TimerState.Pomodoro => self.pomodoro_minutes,
-            TimerState.ShortBreak => self.short_break_minutes,
-            TimerState.LongBreak => self.long_break_minutes,
+    fn update_duration(self: *PomodoroTimer) void {
+        self.seconds = switch (self.mode) {
+            TimerMode.Pomodoro => self.pomodoro_seconds,
+            TimerMode.ShortBreak => self.short_break_seconds,
+            TimerMode.LongBreak => self.long_break_seconds,
         };
-        self.seconds = minutes * std.time.s_per_min;
     }
 
     pub fn format(
-        self: Timer,
+        self: PomodoroTimer,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
