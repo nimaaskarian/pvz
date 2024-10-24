@@ -45,7 +45,7 @@ pub const PomodoroTimer = struct {
         return timer;
     }
 
-    pub fn reset(self: *PomodoroTimer) void {
+    fn reset(self: *PomodoroTimer) void {
         self.session_count = self.config.session_count;
         self.paused = self.config.paused;
         self.update_duration();
@@ -100,7 +100,7 @@ pub const PomodoroTimer = struct {
         self.update_duration();
     }
 
-    fn update_duration(self: *PomodoroTimer) void {
+    pub fn update_duration(self: *PomodoroTimer) void {
         self.seconds = switch (self.mode) {
             TimerMode.Pomodoro => self.config.pomodoro_seconds,
             TimerMode.ShortBreak => self.config.short_break_seconds,
@@ -109,7 +109,7 @@ pub const PomodoroTimer = struct {
     }
 
     pub fn format(
-        self: PomodoroTimer,
+        self: *const PomodoroTimer,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
@@ -121,10 +121,11 @@ pub const PomodoroTimer = struct {
         const hours = self.seconds / std.time.s_per_hour;
         const minutes = seconds / std.time.s_per_min;
         seconds = seconds % std.time.s_per_min;
+        const tagName = @tagName(self.mode);
         if (hours == 0) {
-            try writer.print("{:0>2}:{:0>2}", .{ minutes, seconds });
+            try writer.print("{:0>2}:{:0>2} {s}", .{ minutes, seconds, tagName });
         } else {
-            try writer.print("{}:{:0>2}:{:0>2}", .{ hours, minutes, seconds });
+            try writer.print("{}:{:0>2}:{:0>2} {s}", .{ hours, minutes, seconds, tagName });
         }
     }
 };

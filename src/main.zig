@@ -25,15 +25,18 @@ pub fn main() !void {
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
     const gpa = gpa_alloc.allocator();
 
-    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
+    var buff: [2]u8 = undefined;
     var server = try getServer();
+    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
         const client_reader = client.stream.reader();
         const client_writer = client.stream.writer();
-        const msg = try client_reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 2) orelse continue;
-        defer gpa.free(msg);
+        const msg = client_reader.readUntilDelimiterOrEof(&buff, '\n') catch {
+            try client_writer.writeAll("TOO LONG\n");
+            continue;
+        } orelse continue;
         std.log.info("Received message: \"{}\"", .{std.zig.fmtEscapes(msg)});
 
         const request_int = try std.fmt.parseInt(u16, msg, 10);
@@ -53,7 +56,7 @@ pub fn main() !void {
 const Request = enum {
     TogglePause,
     Skip,
-    Reset,
+    CurrentReset,
     Pause,
     Unpause,
     TotalReset,
@@ -66,7 +69,7 @@ fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
             on_cycle(timer);
             try timer.cycle_mode();
         },
-        .Reset => timer.reset(),
+        .CurrentReset => timer.update_duration(),
         .Pause => timer.paused = true,
         .Unpause => timer.paused = false,
         .TotalReset => timer.totalReset(),
