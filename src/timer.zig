@@ -4,49 +4,84 @@ const except = std.testing.expect;
 const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
 const DEFAULT_TIMER = PomodoroTimer{
-    .paused = false,
     .seconds = 0,
-    .pomodoro_seconds = 25 * std.time.s_per_min,
-    .short_break_seconds = 5 * std.time.s_per_min,
-    .long_break_seconds = 30 * std.time.s_per_min,
-    .session_count = 4,
+    .session_count = 0,
+    .paused = false,
     .mode = TimerMode.Pomodoro,
+    .config = PomodoroTimerConfig{
+        .pomodoro_seconds = 25 * std.time.s_per_min,
+        .short_break_seconds = 5 * std.time.s_per_min,
+        .long_break_seconds = 30 * std.time.s_per_min,
+        .paused = false,
+        .session_count = 4,
+    },
+};
+
+pub const PomodoroTimerConfig = struct {
+    session_count: u16,
+    long_break_seconds: u16,
+    short_break_seconds: u16,
+    pomodoro_seconds: u16,
+    paused: bool,
 };
 
 pub const PomodoroTimer = struct {
     paused: bool,
     seconds: usize,
     mode: TimerMode,
-    session_count: u16,
-    long_break_seconds: u16,
-    short_break_seconds: u16,
-    pomodoro_seconds: u16,
+    config: PomodoroTimerConfig,
+    session_count: usize,
 
     pub fn create() PomodoroTimer {
         var timer = DEFAULT_TIMER;
-        timer.update_duration();
+        timer.reset();
         return timer;
     }
 
-    pub fn tick(self: *PomodoroTimer, comptime on_cycle: fn (timer: *PomodoroTimer) void) !void {
-        std.time.sleep(std.time.ns_per_s);
+    pub fn create_with_config(config: PomodoroTimerConfig) PomodoroTimer {
+        var timer = DEFAULT_TIMER;
+        timer.config = config;
+        timer.reset();
+        return timer;
+    }
+
+    pub fn reset(self: *PomodoroTimer) void {
+        self.session_count = self.config.session_count;
+        self.paused = self.config.paused;
+        self.update_duration();
+    }
+
+    pub fn totalReset(self: *PomodoroTimer) void {
+        const config = self.config;
+        self.* = DEFAULT_TIMER;
+        self.config = config;
+        self.reset();
+    }
+
+    pub fn tick(
+        self: *PomodoroTimer,
+        comptime on_tick: fn (timer: *PomodoroTimer) void,
+        comptime on_cycle: fn (timer: *PomodoroTimer) void,
+    ) !void {
         if (self.seconds == 0) {
             on_cycle(self);
             try self.cycle_mode();
-            self.update_duration();
         } else {
             if (!self.paused) {
+                on_tick(self);
                 self.seconds -= 1;
             }
+            std.time.sleep(std.time.ns_per_s);
         }
     }
 
-    fn cycle_mode(self: *PomodoroTimer) !void {
+    pub fn cycle_mode(self: *PomodoroTimer) !void {
         try except(self.session_count >= 0);
         switch (self.mode) {
             TimerMode.LongBreak => {
                 std.log.debug("long break end. reseting", .{});
-                self.* = DEFAULT_TIMER;
+                self.mode = TimerMode.Pomodoro;
+                self.reset();
             },
             TimerMode.ShortBreak => {
                 std.log.debug("cycle to pomodoro", .{});
@@ -61,15 +96,15 @@ pub const PomodoroTimer = struct {
         if (self.session_count <= 0) {
             std.log.debug("count=0 -> cycle to long break", .{});
             self.mode = TimerMode.LongBreak;
-            return;
         }
+        self.update_duration();
     }
 
     fn update_duration(self: *PomodoroTimer) void {
         self.seconds = switch (self.mode) {
-            TimerMode.Pomodoro => self.pomodoro_seconds,
-            TimerMode.ShortBreak => self.short_break_seconds,
-            TimerMode.LongBreak => self.long_break_seconds,
+            TimerMode.Pomodoro => self.config.pomodoro_seconds,
+            TimerMode.ShortBreak => self.config.short_break_seconds,
+            TimerMode.LongBreak => self.config.long_break_seconds,
         };
     }
 

@@ -1,8 +1,10 @@
 const std = @import("std");
 const known_folders = @import("known-folders");
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
+const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
 
 const except = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
 
 const AppOptions = struct {
     flush: bool,
@@ -12,25 +14,68 @@ const AppOptions = struct {
 };
 
 pub fn main() !void {
-    var timer = PomodoroTimer.create();
-    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
-    try runServer();
-}
-
-fn runServer() !void {
+    var timer = PomodoroTimer.create_with_config(PomodoroTimerConfig{
+        .paused = false,
+        .pomodoro_seconds = 25,
+        .long_break_seconds = 30,
+        .short_break_seconds = 5,
+        .session_count = 4,
+    });
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
     const gpa = gpa_alloc.allocator();
-    {
-        const args = try std.process.argsAlloc(gpa);
-        defer std.process.argsFree(gpa, args);
-        for (args) |arg| {
-            std.debug.print("  {s}\n", .{arg});
+
+    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
+    var server = try getServer();
+    while (true) {
+        var client = try server.accept();
+        defer client.stream.close();
+        const client_reader = client.stream.reader();
+        const client_writer = client.stream.writer();
+        const msg = try client_reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 2) orelse continue;
+        defer gpa.free(msg);
+        std.log.info("Received message: \"{}\"", .{std.zig.fmtEscapes(msg)});
+
+        const request_int = try std.fmt.parseInt(u16, msg, 10);
+        if (std.meta.intToEnum(Request, request_int)) |request| {
+            std.log.info("Message translated to \"{s}\"", .{@tagName(request)});
+            try handleRequest(request, &timer);
+            try client_writer.writeAll("OK\n");
+        } else |err| {
+            std.debug.print("{}\n", .{err});
+            const response = try std.fmt.allocPrint(gpa, "Invalid request number {}\n", .{request_int});
+            defer gpa.free(response);
+            try client_writer.writeAll(response);
         }
     }
+}
 
+const Request = enum {
+    TogglePause,
+    Skip,
+    Reset,
+    Pause,
+    Unpause,
+    TotalReset,
+};
+
+fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
+    switch (req) {
+        .TogglePause => timer.paused = !timer.paused,
+        .Skip => {
+            on_cycle(timer);
+            try timer.cycle_mode();
+        },
+        .Reset => timer.reset(),
+        .Pause => timer.paused = true,
+        .Unpause => timer.paused = false,
+        .TotalReset => timer.totalReset(),
+    }
+}
+
+fn getServer() !std.net.Server {
     var port: u16 = 6660;
-    var server = while (true) {
+    const server = while (true) {
         const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
         const server = addr.listen(.{}) catch |err| {
             try except(err == error.AddressInUse);
@@ -40,30 +85,23 @@ fn runServer() !void {
         break server;
     };
     std.log.info("Server is listening to port {d}", .{port});
-    while (true) {
-        var client = try server.accept();
-        defer client.stream.close();
-        const client_reader = client.stream.reader();
-        const client_writer = client.stream.writer();
-        const msg = try client_reader.readUntilDelimiterOrEofAlloc(gpa, '\n', 65536) orelse break;
-        defer gpa.free(msg);
-
-        std.log.info("Received message: \"{}\"", .{std.zig.fmtEscapes(msg)});
-
-        const response = try std.fmt.allocPrint(gpa, "{s} to you too sir!\n", .{msg});
-        defer gpa.free(response);
-
-        try client_writer.writeAll(response);
-    }
+    return server;
 }
 
-fn say_hello(timer: *PomodoroTimer) void {
+fn on_cycle(timer: *PomodoroTimer) void {
     std.log.debug("Hello to timer from on_cycle callback! {}", .{timer});
+}
+
+fn on_tick(timer: *PomodoroTimer) void {
+    expectEqual(false, timer.paused) catch |err| {
+        std.log.err("Paused assertion failed: {}", .{err});
+        std.process.exit(1);
+    };
+    std.debug.print("{}\n", .{timer});
 }
 
 fn timerLoop(timer: *PomodoroTimer) !void {
     while (true) {
-        try timer.tick(say_hello);
-        std.debug.print("{}\n", .{timer});
+        try timer.tick(on_tick, on_cycle);
     }
 }
