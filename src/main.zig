@@ -36,17 +36,18 @@ pub fn main() !void {
         const client_writer = client.stream.writer();
         const msg = client_reader.readUntilDelimiterOrEof(&buff, '\n') catch {
             try client_writer.writeAll("TOO LONG\n");
+            std.log.err("The message recieved is too long.", .{});
             continue;
         } orelse continue;
-        std.log.info("Received message: \"{}\"", .{std.zig.fmtEscapes(msg)});
 
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
-            std.log.info("Message translated to \"{s}\"", .{@tagName(request)});
+            std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
             try handleRequest(request, &timer);
             try client_writer.writeAll("OK\n");
         } else |err| {
-            std.debug.print("{}\n", .{err});
+            std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
+            std.log.debug("Request parse error: {}", .{err});
             const response = try std.fmt.allocPrint(gpa, "Invalid request number {}\n", .{request_int});
             defer gpa.free(response);
             try client_writer.writeAll(response);

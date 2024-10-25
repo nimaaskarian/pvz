@@ -4,7 +4,7 @@ const except = std.testing.expect;
 const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
 pub const PomodoroTimerConfig = struct {
-    session_count: u16 = 25 * std.time.s_per_min,
+    session_count: u16 = 4,
     long_break_seconds: u16 = 30 * std.time.s_per_min,
     short_break_seconds: u16 = 5 * std.time.s_per_min,
     pomodoro_seconds: u16 = 25 * std.time.s_per_min,

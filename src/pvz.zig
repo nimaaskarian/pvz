@@ -25,11 +25,12 @@ fn on_cycle(timer: *PomodoroTimer) void {
 }
 
 fn on_tick(timer: *PomodoroTimer) void {
+    const out = std.io.getStdOut().writer();
     expectEqual(false, timer.paused) catch |err| {
         std.log.err("Paused assertion failed: {}", .{err});
         std.process.exit(1);
     };
-    std.debug.print("{}\n", .{timer});
+    out.print("{}\n", .{timer}) catch {};
 }
 
 pub fn timerLoop(timer: *PomodoroTimer) !void {
