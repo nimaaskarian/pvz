@@ -44,9 +44,10 @@ pub const Request = enum {
     reset,
     seek,
     seek_back,
+    quit,
 };
 
-pub fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
+pub fn handleRequest(req: Request, timer: *PomodoroTimer) !bool {
     switch (req) {
         .toggle => timer.paused = !timer.paused,
         .skip => {
@@ -65,5 +66,9 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
             timer.seek_back(5);
             on_tick(timer);
         },
+        .quit => {
+            return true;
+        },
     }
+    return false;
 }

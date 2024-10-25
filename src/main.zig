@@ -20,14 +20,16 @@ const AppOptions = struct {
 };
 
 pub fn main() !void {
-    var timer = PomodoroTimer{};
-    timer.init();
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
     const gpa = gpa_alloc.allocator();
 
     var buff: [MAX_REQ_LEN]u8 = undefined;
     var server = try getServer();
+    defer server.deinit();
+
+    var timer = PomodoroTimer{};
+    timer.init();
     _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
     while (true) {
         var client = try server.accept();
@@ -43,7 +45,7 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            try handleRequest(request, &timer);
+            if (try handleRequest(request, &timer)) break;
             try client_writer.writeAll("OK\n");
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
