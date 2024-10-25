@@ -45,7 +45,10 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handleRequest(request, &timer)) break;
+            if (try handleRequest(request, &timer)) {
+                try client_writer.writeAll("OK\n");
+                break;
+            }
             try client_writer.writeAll("OK\n");
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
