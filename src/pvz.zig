@@ -10,7 +10,7 @@ pub fn getServer() !std.net.Server {
     const server = while (true) {
         const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
         const server = addr.listen(.{}) catch |err| {
-            try expectEqual(.AddressInUse, err);
+            try expectEqual(error.AddressInUse, err);
             port += 1;
             continue;
         };
