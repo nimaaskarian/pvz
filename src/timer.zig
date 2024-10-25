@@ -3,59 +3,26 @@ const except = std.testing.expect;
 
 const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
-const DEFAULT_TIMER = PomodoroTimer{
-    .seconds = 0,
-    .session_count = 0,
-    .paused = false,
-    .mode = TimerMode.Pomodoro,
-    .config = PomodoroTimerConfig{
-        .pomodoro_seconds = 25 * std.time.s_per_min,
-        .short_break_seconds = 5 * std.time.s_per_min,
-        .long_break_seconds = 30 * std.time.s_per_min,
-        .paused = false,
-        .session_count = 4,
-    },
-};
-
 pub const PomodoroTimerConfig = struct {
-    session_count: u16,
-    long_break_seconds: u16,
-    short_break_seconds: u16,
-    pomodoro_seconds: u16,
-    paused: bool,
+    session_count: u16 = 25 * std.time.s_per_min,
+    long_break_seconds: u16 = 30 * std.time.s_per_min,
+    short_break_seconds: u16 = 5 * std.time.s_per_min,
+    pomodoro_seconds: u16 = 25 * std.time.s_per_min,
+    paused: bool = false,
 };
 
 pub const PomodoroTimer = struct {
-    paused: bool,
-    seconds: usize,
-    mode: TimerMode,
-    config: PomodoroTimerConfig,
-    session_count: usize,
+    paused: bool = false,
+    seconds: usize = 0,
+    mode: TimerMode = TimerMode.Pomodoro,
+    config: PomodoroTimerConfig = .{},
+    session_count: usize = 0,
 
-    pub fn create() PomodoroTimer {
-        var timer = DEFAULT_TIMER;
-        timer.reset();
-        return timer;
-    }
-
-    pub fn create_with_config(config: PomodoroTimerConfig) PomodoroTimer {
-        var timer = DEFAULT_TIMER;
-        timer.config = config;
-        timer.reset();
-        return timer;
-    }
-
-    fn reset(self: *PomodoroTimer) void {
+    pub fn init(self: *PomodoroTimer) void {
         self.session_count = self.config.session_count;
         self.paused = self.config.paused;
+        self.mode = TimerMode.Pomodoro;
         self.update_duration();
-    }
-
-    pub fn totalReset(self: *PomodoroTimer) void {
-        const config = self.config;
-        self.* = DEFAULT_TIMER;
-        self.config = config;
-        self.reset();
     }
 
     pub fn tick(
@@ -80,8 +47,7 @@ pub const PomodoroTimer = struct {
         switch (self.mode) {
             TimerMode.LongBreak => {
                 std.log.debug("long break end. reseting", .{});
-                self.mode = TimerMode.Pomodoro;
-                self.reset();
+                self.init();
             },
             TimerMode.ShortBreak => {
                 std.log.debug("cycle to pomodoro", .{});

@@ -2,6 +2,12 @@ const std = @import("std");
 const known_folders = @import("known-folders");
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
+const pvz = @import("pvz.zig");
+const getServer = pvz.getServer;
+const timerLoop = pvz.timerLoop;
+const Request = pvz.Request;
+const handleRequest = pvz.handleRequest;
+pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -14,18 +20,13 @@ const AppOptions = struct {
 };
 
 pub fn main() !void {
-    var timer = PomodoroTimer.create_with_config(PomodoroTimerConfig{
-        .paused = false,
-        .pomodoro_seconds = 25,
-        .long_break_seconds = 30,
-        .short_break_seconds = 5,
-        .session_count = 4,
-    });
+    var timer = PomodoroTimer{};
+    timer.init();
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
     const gpa = gpa_alloc.allocator();
 
-    var buff: [2]u8 = undefined;
+    var buff: [MAX_REQ_LEN]u8 = undefined;
     var server = try getServer();
     _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
     while (true) {
@@ -50,61 +51,5 @@ pub fn main() !void {
             defer gpa.free(response);
             try client_writer.writeAll(response);
         }
-    }
-}
-
-const Request = enum {
-    TogglePause,
-    Skip,
-    CurrentReset,
-    Pause,
-    Unpause,
-    TotalReset,
-};
-
-fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
-    switch (req) {
-        .TogglePause => timer.paused = !timer.paused,
-        .Skip => {
-            on_cycle(timer);
-            try timer.cycle_mode();
-        },
-        .CurrentReset => timer.update_duration(),
-        .Pause => timer.paused = true,
-        .Unpause => timer.paused = false,
-        .TotalReset => timer.totalReset(),
-    }
-}
-
-fn getServer() !std.net.Server {
-    var port: u16 = 6660;
-    const server = while (true) {
-        const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
-        const server = addr.listen(.{}) catch |err| {
-            try except(err == error.AddressInUse);
-            port += 1;
-            continue;
-        };
-        break server;
-    };
-    std.log.info("Server is listening to port {d}", .{port});
-    return server;
-}
-
-fn on_cycle(timer: *PomodoroTimer) void {
-    std.log.debug("Hello to timer from on_cycle callback! {}", .{timer});
-}
-
-fn on_tick(timer: *PomodoroTimer) void {
-    expectEqual(false, timer.paused) catch |err| {
-        std.log.err("Paused assertion failed: {}", .{err});
-        std.process.exit(1);
-    };
-    std.debug.print("{}\n", .{timer});
-}
-
-fn timerLoop(timer: *PomodoroTimer) !void {
-    while (true) {
-        try timer.tick(on_tick, on_cycle);
     }
 }

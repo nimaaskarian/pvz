@@ -1,6 +1,8 @@
 const std = @import("std");
 const testing = std.testing;
-const PomodoroTimer = @import("timer.zig").PomodoroTimer;
+pub const PomodoroTimer = @import("timer.zig").PomodoroTimer;
+const pvz = @import("pvz.zig");
+pub const Request = pvz.Request;
 
 test "cycle to short break" {
     var timer = PomodoroTimer.create_with_config(.{ .pomodoro_seconds = 1 });

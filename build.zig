@@ -36,6 +36,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const pvzctlexe = b.addExecutable(.{
+        .name = "pvzctl",
+        .root_source_file = b.path("src/pvzctl.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const clap = b.dependency("clap", .{});
+    pvzctlexe.root_module.addImport("clap", clap.module("clap"));
     // This adds the known-folders module to the executable which can then be imported with `@import("known-folders")`
     exe.root_module.addImport("known-folders", known_folders);
 
@@ -43,6 +51,7 @@ pub fn build(b: *std.Build) void {
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
     b.installArtifact(exe);
+    b.installArtifact(pvzctlexe);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
