@@ -10,7 +10,7 @@ pub fn getServer() !std.net.Server {
     const server = while (true) {
         const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
         const server = addr.listen(.{}) catch |err| {
-            try except(err == error.AddressInUse);
+            try expectEqual(.AddressInUse, err);
             port += 1;
             continue;
         };
@@ -26,10 +26,6 @@ fn on_cycle(timer: *PomodoroTimer) void {
 
 fn on_tick(timer: *PomodoroTimer) void {
     const out = std.io.getStdOut().writer();
-    expectEqual(false, timer.paused) catch |err| {
-        std.log.err("Paused assertion failed: {}", .{err});
-        std.process.exit(1);
-    };
     out.print("{}\n", .{timer}) catch {};
 }
 
@@ -46,6 +42,8 @@ pub const Request = enum {
     pause,
     unpause,
     reset,
+    seek,
+    seek_back,
 };
 
 pub fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
@@ -59,5 +57,13 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer) !void {
         .pause => timer.paused = true,
         .unpause => timer.paused = false,
         .reset => timer.init(),
+        .seek => {
+            timer.seek(5);
+            on_tick(timer);
+        },
+        .seek_back => {
+            timer.seek_back(5);
+            on_tick(timer);
+        },
     }
 }

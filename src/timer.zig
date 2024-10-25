@@ -25,6 +25,18 @@ pub const PomodoroTimer = struct {
         self.update_duration();
     }
 
+    pub fn seek(self: *PomodoroTimer, seek_amount: usize) void {
+        self.seconds += seek_amount;
+    }
+
+    pub fn seek_back(self: *PomodoroTimer, seek_amount: usize) void {
+        if (seek_amount > self.seconds) {
+            self.seconds = 0;
+        } else {
+            self.seconds -= seek_amount;
+        }
+    }
+
     pub fn tick(
         self: *PomodoroTimer,
         comptime on_tick: fn (timer: *PomodoroTimer) void,
