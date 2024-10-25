@@ -19,6 +19,7 @@ const AppOptions = struct {
     format: [*]u8,
 };
 
+// TODO: clean the function :_(
 pub fn main() !void {
     var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa_alloc.deinit() == .ok);
@@ -45,11 +46,7 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handleRequest(request, &timer)) {
-                try client_writer.writeAll("OK\n");
-                break;
-            }
-            try client_writer.writeAll("OK\n");
+            if (try handleRequest(request, &timer, &client_writer)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});

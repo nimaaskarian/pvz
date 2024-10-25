@@ -6,6 +6,7 @@ const timerLoop = pvz.timerLoop;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 
+// TODO: clean the damn function
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
