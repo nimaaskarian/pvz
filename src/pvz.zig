@@ -77,9 +77,10 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool
         },
         .get_timer => {
             print_ok = false;
-            const msg = try std.fmt.allocPrint(alloc, "{}-{}-{}-{}\n", .{ timer.seconds, timer.session_count, timer.paused, @intFromEnum(timer.mode) });
+            const msg = try std.fmt.allocPrint(alloc, "{}\n{}\n{}\n{}\n", .{ timer.seconds, timer.session_count, @intFromBool(timer.paused), @intFromEnum(timer.mode) });
             defer alloc.free(msg);
             try writer.writeAll(msg);
+            return break_loop;
         },
     }
     if (print_ok) {

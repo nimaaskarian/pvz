@@ -1,7 +1,7 @@
 const std = @import("std");
 const except = std.testing.expect;
 
-const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
+pub const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
 pub const PomodoroTimerConfig = struct {
     session_count: u16 = 4,

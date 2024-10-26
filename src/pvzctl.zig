@@ -35,8 +35,27 @@ pub fn main() !void {
     var buff: [MAX_REQ_LEN]u8 = undefined;
     for (res.args.request) |request| {
         const stream = try std.net.tcpConnectToAddress(addr);
+        defer stream.close();
         const msg = try std.fmt.bufPrint(&buff, "{}\n", .{@intFromEnum(request)});
-        // TODO: Write a handler for response of get_timer
         _ = try stream.write(msg);
+        if (request == .get_timer) {
+            var timer = PomodoroTimer{};
+            const reader = stream.reader();
+            var index: usize = 0;
+            while (try reader.readUntilDelimiterOrEofAlloc(alloc, '\n', 65536)) |line| : (index += 1) {
+                defer alloc.free(line);
+                switch (index) {
+                    0 => timer.seconds = try std.fmt.parseInt(usize, line, 10),
+                    1 => timer.session_count = try std.fmt.parseInt(usize, line, 10),
+                    2 => timer.paused = try std.fmt.parseInt(u1, line, 10) == 1,
+                    3 => {
+                        const mode_value = try std.fmt.parseInt(usize, line, 10);
+                        timer.mode = @enumFromInt(mode_value);
+                    },
+                    else => {},
+                }
+            }
+            std.debug.print("{}\n", .{timer});
+        }
     }
 }
