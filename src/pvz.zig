@@ -3,7 +3,7 @@ const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 
-pub const MAX_REQ_LEN = 1000;
+pub const MAX_REQ_LEN = 2;
 
 pub fn getServer() !std.net.Server {
     var port: u16 = 6660;
@@ -49,7 +49,8 @@ pub const Request = enum {
 };
 
 pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool {
-    var ok = true;
+    var print_ok = true;
+    var break_loop = false;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
@@ -72,17 +73,17 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool
             on_tick(timer);
         },
         .quit => {
-            return true;
+            break_loop = true;
         },
         .get_timer => {
-            ok = false;
+            print_ok = false;
             const msg = try std.fmt.allocPrint(alloc, "{}-{}-{}-{}\n", .{ timer.seconds, timer.session_count, timer.paused, @intFromEnum(timer.mode) });
             defer alloc.free(msg);
             try writer.writeAll(msg);
         },
     }
-    if (ok) {
+    if (print_ok) {
         try writer.writeAll("OK\n");
     }
-    return false;
+    return break_loop;
 }

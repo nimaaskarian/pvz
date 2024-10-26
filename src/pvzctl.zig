@@ -5,11 +5,13 @@ const getServer = pvz.getServer;
 const timerLoop = pvz.timerLoop;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
+const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 
 // TODO: clean the damn function
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
+    const alloc = gpa.allocator();
     const params = comptime clap.parseParamsComptime(
         \\-r, --request <REQUEST>...        Request to be sent
         \\-h, --help                        Display this help and exit.
@@ -19,7 +21,7 @@ pub fn main() !void {
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, parsers, .{
         .diagnostic = &diag,
-        .allocator = gpa.allocator(),
+        .allocator = alloc,
     }) catch |err| {
         diag.report(std.io.getStdErr().writer(), err) catch {};
         return err;
@@ -34,6 +36,7 @@ pub fn main() !void {
     for (res.args.request) |request| {
         const stream = try std.net.tcpConnectToAddress(addr);
         const msg = try std.fmt.bufPrint(&buff, "{}\n", .{@intFromEnum(request)});
+        // TODO: Write a handler for response of get_timer
         _ = try stream.write(msg);
     }
 }
