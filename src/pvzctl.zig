@@ -3,7 +3,6 @@ const pvz = @import("pvz.zig");
 const utils = @import("utils.zig");
 const clap = @import("clap");
 const getServer = pvz.getServer;
-const timerLoop = pvz.timerLoop;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 const pomodoro_timer = @import("timer.zig");
@@ -34,7 +33,7 @@ pub fn main() !void {
 
     if (res.args.help != 0)
         return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
-    std.debug.print("{any}\n", .{res.args.request});
+
     const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, res.args.port orelse 6660);
     var buff: [MAX_REQ_LEN]u8 = undefined;
     for (res.args.request) |request| {
@@ -62,7 +61,8 @@ pub fn main() !void {
             const format = res.args.format orelse "%t %p";
             const timer_str = try utils.resolve_format(alloc, format, timer, formatStr);
             defer timer_str.deinit();
-            std.debug.print("{s}\n", .{timer_str.items});
+            const out = std.io.getStdOut().writer();
+            out.print("{s}\n", .{timer_str.items}) catch {};
         }
     }
 }

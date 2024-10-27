@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) void {
     });
     const clap = b.dependency("clap", .{});
     pvzctlexe.root_module.addImport("clap", clap.module("clap"));
+    exe.root_module.addImport("clap", clap.module("clap"));
     // This adds the known-folders module to the executable which can then be imported with `@import("known-folders")`
     exe.root_module.addImport("known-folders", known_folders);
 

@@ -8,27 +8,12 @@ const formatStr = pomodoro_timer.formatStr;
 
 pub const MAX_REQ_LEN = 2;
 
-pub fn getServer() !std.net.Server {
-    var port: u16 = 6660;
-    const server = while (true) {
-        const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
-        const server = addr.listen(.{}) catch |err| {
-            try expectEqual(error.AddressInUse, err);
-            port += 1;
-            continue;
-        };
-        break server;
-    };
-    std.log.info("Server is listening to port {d}", .{port});
-    return server;
-}
-
 fn on_cycle(timer: *PomodoroTimer) void {
     std.log.debug("on_cycle callback! timer: {}", .{timer});
 }
 
-fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator) void {
-    const value = utils.resolve_format(alloc, "%t  %p", timer, formatStr) catch {
+fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator, format: []const u8) void {
+    const value = utils.resolve_format(alloc, format, timer, formatStr) catch {
         return;
     };
     defer value.deinit();
@@ -37,7 +22,7 @@ fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator) void {
     out.print("{s}\n", .{value.items}) catch {};
 }
 
-pub fn timerLoop(timer: *PomodoroTimer) !void {
+pub fn timerLoop(timer: *PomodoroTimer, format: []const u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
@@ -45,7 +30,7 @@ pub fn timerLoop(timer: *PomodoroTimer) !void {
     while (true) {
         std.time.sleep(std.time.ns_per_s);
         if (timer.seconds != 0 and !timer.paused) {
-            on_tick(timer, alloc);
+            on_tick(timer, alloc, format);
         }
         try timer.tick(on_cycle);
     }
@@ -64,7 +49,7 @@ pub const Request = enum {
     get_timer,
 };
 
-pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool {
+pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8) !bool {
     var print_ok = true;
     var break_loop = false;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -82,11 +67,11 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool
         .reset => timer.init(),
         .seek => {
             timer.seek(5);
-            on_tick(timer, alloc);
+            on_tick(timer, alloc, format);
         },
         .seek_back => {
             timer.seek_back(5);
-            on_tick(timer, alloc);
+            on_tick(timer, alloc, format);
         },
         .quit => {
             break_loop = true;

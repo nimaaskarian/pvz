@@ -1,4 +1,5 @@
 const std = @import("std");
+const clap = @import("clap");
 const utils = @import("utils.zig");
 const known_folders = @import("known-folders");
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
@@ -22,17 +23,45 @@ const AppOptions = struct {
 
 // TODO: clean the function :_(
 pub fn main() !void {
-    var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa_alloc.deinit() == .ok);
-    const gpa = gpa_alloc.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const alloc = gpa.allocator();
+    const params = comptime clap.parseParamsComptime(
+        \\-f, --format <str>                Format to show the timer
+        \\-h, --help                        Display this help and exit.
+        \\-p, --port <u16>                  Port to connect to
+    );
+    const parsers = comptime .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 10), .str = clap.parsers.string };
+    var diag = clap.Diagnostic{};
+    var res = clap.parse(clap.Help, &params, parsers, .{
+        .diagnostic = &diag,
+        .allocator = alloc,
+    }) catch |err| {
+        diag.report(std.io.getStdErr().writer(), err) catch {};
+        return err;
+    };
+    defer res.deinit();
+
+    if (res.args.help != 0)
+        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
 
     var buff: [MAX_REQ_LEN]u8 = undefined;
-    var server = try getServer();
+    const port: u16 = res.args.port orelse 6660;
+
+    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
+    var server = addr.listen(.{}) catch |err| {
+        try expectEqual(error.AddressInUse, err);
+        std.log.err("Port {} is already in use. Quitting...", .{port});
+        std.process.exit(1);
+    };
+    std.log.info("Server is listening to port {d}", .{port});
+    const format = res.args.format orelse "%m %t %p";
+
     defer server.deinit();
 
-    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .pomodoro_seconds = 25 } };
+    var timer = PomodoroTimer{};
     timer.init();
-    _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
+    _ = try std.Thread.spawn(.{}, timerLoop, .{ &timer, format });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
@@ -47,12 +76,12 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handleRequest(request, &timer, &client_writer)) break;
+            if (try handleRequest(request, &timer, &client_writer, format)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});
-            const response = try std.fmt.allocPrint(gpa, "Invalid request number {}\n", .{request_int});
-            defer gpa.free(response);
+            const response = try std.fmt.allocPrint(alloc, "Invalid request number {}\n", .{request_int});
+            defer alloc.free(response);
             try client_writer.writeAll(response);
         }
     }
