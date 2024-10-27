@@ -24,15 +24,11 @@ pub fn getServer() !std.net.Server {
 }
 
 fn on_cycle(timer: *PomodoroTimer) void {
-    std.log.debug("Hello to timer from on_cycle callback! {}", .{timer});
+    std.log.debug("on_cycle callback! timer: {}", .{timer});
 }
 
-fn on_tick(timer: *PomodoroTimer) void {
-    var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa_alloc.deinit() == .ok);
-    const gpa = gpa_alloc.allocator();
-
-    const value = utils.resolve_format(gpa, "%t  %p", timer, formatStr) catch {
+fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator) void {
+    const value = utils.resolve_format(alloc, "%t  %p", timer, formatStr) catch {
         return;
     };
     defer value.deinit();
@@ -42,8 +38,16 @@ fn on_tick(timer: *PomodoroTimer) void {
 }
 
 pub fn timerLoop(timer: *PomodoroTimer) !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const alloc = gpa.allocator();
+
     while (true) {
-        try timer.tick(on_tick, on_cycle);
+        std.time.sleep(std.time.ns_per_s);
+        if (timer.seconds != 0 and !timer.paused) {
+            on_tick(timer, alloc);
+        }
+        try timer.tick(on_cycle);
     }
 }
 
@@ -78,11 +82,11 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype) !bool
         .reset => timer.init(),
         .seek => {
             timer.seek(5);
-            on_tick(timer);
+            on_tick(timer, alloc);
         },
         .seek_back => {
             timer.seek_back(5);
-            on_tick(timer);
+            on_tick(timer, alloc);
         },
         .quit => {
             break_loop = true;

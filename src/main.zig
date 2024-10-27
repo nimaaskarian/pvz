@@ -30,7 +30,7 @@ pub fn main() !void {
     var server = try getServer();
     defer server.deinit();
 
-    var timer = PomodoroTimer{};
+    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .pomodoro_seconds = 25 } };
     timer.init();
     _ = try std.Thread.spawn(.{}, timerLoop, .{&timer});
     while (true) {

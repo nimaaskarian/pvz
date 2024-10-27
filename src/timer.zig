@@ -40,7 +40,6 @@ pub const PomodoroTimer = struct {
 
     pub fn tick(
         self: *PomodoroTimer,
-        comptime on_tick: fn (timer: *PomodoroTimer) void,
         comptime on_cycle: fn (timer: *PomodoroTimer) void,
     ) !void {
         if (self.seconds == 0) {
@@ -48,10 +47,8 @@ pub const PomodoroTimer = struct {
             try self.cycle_mode();
         } else {
             if (!self.paused) {
-                on_tick(self);
                 self.seconds -= 1;
             }
-            std.time.sleep(std.time.ns_per_s);
         }
     }
 

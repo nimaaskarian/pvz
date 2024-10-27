@@ -1,11 +1,14 @@
 const std = @import("std");
 const pvz = @import("pvz.zig");
+const utils = @import("utils.zig");
 const clap = @import("clap");
 const getServer = pvz.getServer;
 const timerLoop = pvz.timerLoop;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
-const PomodoroTimer = @import("timer.zig").PomodoroTimer;
+const pomodoro_timer = @import("timer.zig");
+const PomodoroTimer = pomodoro_timer.PomodoroTimer;
+const formatStr = pomodoro_timer.formatStr;
 
 // TODO: clean the damn function
 pub fn main() !void {
@@ -14,10 +17,11 @@ pub fn main() !void {
     const alloc = gpa.allocator();
     const params = comptime clap.parseParamsComptime(
         \\-r, --request <REQUEST>...        Request to be sent
+        \\-f, --format <str>                Format to show the timer
         \\-h, --help                        Display this help and exit.
         \\-p, --port <u16>                  Port to connect to
     );
-    const parsers = comptime .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 10) };
+    const parsers = comptime .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 10), .str = clap.parsers.string };
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, parsers, .{
         .diagnostic = &diag,
@@ -55,7 +59,10 @@ pub fn main() !void {
                     else => {},
                 }
             }
-            std.debug.print("{}\n", .{timer});
+            const format = res.args.format orelse "%t %p";
+            const timer_str = try utils.resolve_format(alloc, format, timer, formatStr);
+            defer timer_str.deinit();
+            std.debug.print("{s}\n", .{timer_str.items});
         }
     }
 }
