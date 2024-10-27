@@ -1,4 +1,5 @@
 const std = @import("std");
+const mem = std.mem;
 const except = std.testing.expect;
 
 pub const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
@@ -99,11 +100,26 @@ pub const PomodoroTimer = struct {
         const hours = self.seconds / std.time.s_per_hour;
         const minutes = seconds / std.time.s_per_min;
         seconds = seconds % std.time.s_per_min;
-        const tagName = @tagName(self.mode);
         if (hours == 0) {
-            try writer.print("{:0>2}:{:0>2} {s}", .{ minutes, seconds, tagName });
+            try writer.print("{:0>2}:{:0>2}", .{ minutes, seconds });
         } else {
-            try writer.print("{}:{:0>2}:{:0>2} {s}", .{ hours, minutes, seconds, tagName });
+            try writer.print("{}:{:0>2}:{:0>2}", .{ hours, minutes, seconds });
         }
     }
 };
+
+fn allocPrintCatch(alloc: mem.Allocator, comptime format: []const u8, args: anytype) ?[]u8 {
+    return std.fmt.allocPrint(alloc, format, args) catch {
+        return null;
+    };
+}
+
+pub fn formatStr(alloc: std.mem.Allocator, args: anytype, ch: u8) ?[]u8 {
+    return switch (ch) {
+        't' => allocPrintCatch(alloc, "{s}", .{args}),
+        'p' => allocPrintCatch(alloc, "{}", .{args.session_count}),
+        'm' => allocPrintCatch(alloc, "{s}", .{@tagName(args.mode)}),
+        's' => allocPrintCatch(alloc, "{}", .{args.seconds}),
+        else => null,
+    };
+}

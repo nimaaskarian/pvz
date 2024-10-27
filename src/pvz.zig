@@ -1,7 +1,10 @@
 const std = @import("std");
+const utils = @import("utils.zig");
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
-const PomodoroTimer = @import("timer.zig").PomodoroTimer;
+const pomodoro_timer = @import("timer.zig");
+const PomodoroTimer = pomodoro_timer.PomodoroTimer;
+const formatStr = pomodoro_timer.formatStr;
 
 pub const MAX_REQ_LEN = 2;
 
@@ -25,8 +28,17 @@ fn on_cycle(timer: *PomodoroTimer) void {
 }
 
 fn on_tick(timer: *PomodoroTimer) void {
+    var gpa_alloc = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa_alloc.deinit() == .ok);
+    const gpa = gpa_alloc.allocator();
+
+    const value = utils.resolve_format(gpa, "%t  %p", timer, formatStr) catch {
+        return;
+    };
+    defer value.deinit();
+
     const out = std.io.getStdOut().writer();
-    out.print("{}\n", .{timer}) catch {};
+    out.print("{s}\n", .{value.items}) catch {};
 }
 
 pub fn timerLoop(timer: *PomodoroTimer) !void {

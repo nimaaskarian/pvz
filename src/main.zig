@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("utils.zig");
 const known_folders = @import("known-folders");
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
