@@ -31,9 +31,11 @@ pub fn main() !void {
         \\-h, --help                        Display this help and exit.
         \\-p, --port <u16>                  Port to connect to
     );
-    const parsers = comptime .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 10), .str = clap.parsers.string };
+    const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
+    defer alloc.free(config_dir);
+
     var diag = clap.Diagnostic{};
-    var res = clap.parse(clap.Help, &params, parsers, .{
+    var res = clap.parse(clap.Help, &params, clap.parsers.default, .{
         .diagnostic = &diag,
         .allocator = alloc,
     }) catch |err| {
@@ -61,7 +63,7 @@ pub fn main() !void {
 
     var timer = PomodoroTimer{};
     timer.init();
-    _ = try std.Thread.spawn(.{}, timerLoop, .{ &timer, format });
+    _ = try std.Thread.spawn(.{}, timerLoop, .{ &timer, format, config_dir });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
@@ -76,7 +78,7 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handleRequest(request, &timer, &client_writer, format)) break;
+            if (try handleRequest(request, &timer, &client_writer, format, config_dir)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});

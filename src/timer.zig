@@ -40,10 +40,8 @@ pub const PomodoroTimer = struct {
 
     pub fn tick(
         self: *PomodoroTimer,
-        comptime on_cycle: fn (timer: *PomodoroTimer) void,
     ) !void {
         if (self.seconds == 0) {
-            on_cycle(self);
             try self.cycle_mode();
         } else {
             if (!self.paused) {

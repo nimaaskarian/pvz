@@ -8,6 +8,7 @@ pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
 const formatStr = pomodoro_timer.formatStr;
+const parsers = .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 0), .str = clap.parsers.string };
 
 // TODO: clean the damn function
 pub fn main() !void {
@@ -20,7 +21,6 @@ pub fn main() !void {
         \\-h, --help                        Display this help and exit.
         \\-p, --port <u16>                  Port to connect to
     );
-    const parsers = comptime .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 10), .str = clap.parsers.string };
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, parsers, .{
         .diagnostic = &diag,

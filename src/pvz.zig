@@ -8,8 +8,34 @@ const formatStr = pomodoro_timer.formatStr;
 
 pub const MAX_REQ_LEN = 2;
 
-fn on_cycle(timer: *PomodoroTimer) void {
-    std.log.debug("on_cycle callback! timer: {}", .{timer});
+const pvz_dir_base = std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz", std.fs.path.sep });
+fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
+    std.log.debug("on_start callback! timer.mode: {}", .{timer.mode});
+    const name = switch (timer.mode) {
+        .Pomodoro => "on-pomodoro-start.sh",
+        .ShortBreak => "on-short-break-start.sh",
+        .LongBreak => "on-long-break-start.sh",
+    };
+    try run_script(alloc, config_dir, name);
+}
+
+fn on_end(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
+    std.log.debug("on_end callback! timer.mode: {}", .{timer.mode});
+    const name = switch (timer.mode) {
+        .Pomodoro => "on-pomodoro-end.sh",
+        .ShortBreak => "on-short-break-end.sh",
+        .LongBreak => "on-long-break-end.sh",
+    };
+    try run_script(alloc, config_dir, name);
+}
+
+inline fn run_script(alloc: std.mem.Allocator, config_dir: []const u8, name: []const u8) !void {
+    const script_file = try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ config_dir, pvz_dir_base, name });
+    defer alloc.free(script_file);
+
+    const argv = [_][]const u8{script_file};
+    var proc = std.process.Child.init(&argv, alloc);
+    try proc.spawn();
 }
 
 fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator, format: []const u8) void {
@@ -22,7 +48,7 @@ fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator, format: []const u8) 
     out.print("{s}\n", .{value.items}) catch {};
 }
 
-pub fn timerLoop(timer: *PomodoroTimer, format: []const u8) !void {
+pub fn timerLoop(timer: *PomodoroTimer, format: []const u8, config_dir: []const u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
@@ -32,7 +58,14 @@ pub fn timerLoop(timer: *PomodoroTimer, format: []const u8) !void {
         if (timer.seconds != 0 and !timer.paused) {
             on_tick(timer, alloc, format);
         }
-        try timer.tick(on_cycle);
+        const is_last_sec = timer.seconds == 0;
+        if (is_last_sec) {
+            try on_end(alloc, timer, config_dir);
+        }
+        try timer.tick();
+        if (is_last_sec) {
+            try on_start(alloc, timer, config_dir);
+        }
     }
 }
 
@@ -49,7 +82,7 @@ pub const Request = enum {
     get_timer,
 };
 
-pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8) !bool {
+pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8, config_dir: []const u8) !bool {
     var print_ok = true;
     var break_loop = false;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -58,8 +91,8 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, forma
     switch (req) {
         .toggle => timer.paused = !timer.paused,
         .skip => {
-            on_cycle(timer);
             try timer.cycle_mode();
+            try on_start(alloc, timer, config_dir);
         },
         .current_reset => timer.update_duration(),
         .pause => timer.paused = true,
