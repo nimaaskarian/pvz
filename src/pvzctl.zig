@@ -31,8 +31,14 @@ pub fn main() !void {
     };
     defer res.deinit();
 
-    if (res.args.help != 0)
-        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+    if (res.args.help != 0) {
+        try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+        std.debug.print("\n<REQUEST>:\n", .{});
+        inline for (std.meta.fieldNames(Request)) |r| {
+            std.debug.print("    {s}\n", .{r});
+        }
+        return;
+    }
 
     const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, res.args.port orelse 6660);
     var buff: [MAX_REQ_LEN]u8 = undefined;
