@@ -23,3 +23,12 @@ pub fn resolve_format(alloc: mem.Allocator, format: []const u8, args: anytype, c
     }
     return buff;
 }
+
+pub fn intLen(in: anytype) usize {
+    var n = in;
+    var count = 0;
+    while (n != 0) : (count += 1) {
+        n /= 10;
+    }
+    return count;
+}

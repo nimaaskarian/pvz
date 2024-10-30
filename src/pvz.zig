@@ -6,7 +6,7 @@ const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
 const formatStr = pomodoro_timer.formatStr;
 
-pub const MAX_REQ_LEN = 2;
+pub const MAX_REQ_LEN = utils.intLen(std.meta.fields(Request).len) + 1;
 
 const pvz_dir_base = std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz", std.fs.path.sep });
 fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
@@ -80,6 +80,8 @@ pub const Request = enum {
     seek_back,
     quit,
     get_timer,
+    add_session,
+    sub_session,
 };
 
 pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8, config_dir: []const u8) !bool {
@@ -115,6 +117,14 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, forma
             defer alloc.free(msg);
             try writer.writeAll(msg);
             return break_loop;
+        },
+        .add_session => {
+            timer.session_count += 1;
+        },
+        .sub_session => {
+            if (timer.session_count != 0) {
+                timer.session_count -= 1;
+            }
         },
     }
     if (print_ok) {
