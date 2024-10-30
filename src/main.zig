@@ -1,7 +1,11 @@
+// vim:fileencoding=utf-8:foldmethod=marker
+// imports {{{
 const std = @import("std");
 const clap = @import("clap");
 const utils = @import("utils.zig");
 const known_folders = @import("known-folders");
+// }}}
+// globals {{{
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
 const pvz = @import("pvz.zig");
@@ -13,6 +17,7 @@ pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
+// }}}
 
 const AppOptions = struct {
     flush: bool,
@@ -63,6 +68,7 @@ pub fn main() !void {
 
     var timer = PomodoroTimer{};
     timer.init();
+    try pvz.on_start(alloc, &timer, config_dir);
     _ = try std.Thread.spawn(.{}, timerLoop, .{ &timer, format, config_dir });
     while (true) {
         var client = try server.accept();

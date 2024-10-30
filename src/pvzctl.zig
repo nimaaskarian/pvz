@@ -1,7 +1,13 @@
+// vim:fileencoding=utf-8:foldmethod=marker
+// imports {{{
 const std = @import("std");
 const pvz = @import("pvz.zig");
 const utils = @import("utils.zig");
 const clap = @import("clap");
+// }}}
+// globals {{{
+const net = std.net;
+const debug = std.debug;
 const getServer = pvz.getServer;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
@@ -9,6 +15,7 @@ const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
 const formatStr = pomodoro_timer.formatStr;
 const parsers = .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 0), .str = clap.parsers.string };
+// }}}
 
 // TODO: clean the damn function
 pub fn main() !void {
@@ -33,17 +40,17 @@ pub fn main() !void {
 
     if (res.args.help != 0) {
         try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
-        std.debug.print("\n<REQUEST>:\n", .{});
+        debug.print("\n<REQUEST>:\n", .{});
         inline for (std.meta.fieldNames(Request)) |r| {
-            std.debug.print("    {s}\n", .{r});
+            debug.print("    {s}\n", .{r});
         }
         return;
     }
 
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, res.args.port orelse 6660);
+    const addr = net.Address.initIp4(.{ 127, 0, 0, 1 }, res.args.port orelse 6660);
     var buff: [MAX_REQ_LEN]u8 = undefined;
     for (res.args.request) |request| {
-        const stream = try std.net.tcpConnectToAddress(addr);
+        const stream = try net.tcpConnectToAddress(addr);
         defer stream.close();
         const msg = try std.fmt.bufPrint(&buff, "{}\n", .{@intFromEnum(request)});
         _ = try stream.write(msg);

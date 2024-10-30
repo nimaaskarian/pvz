@@ -1,5 +1,8 @@
+// vim:fileencoding=utf-8:foldmethod=marker
+// imports{{{
 const std = @import("std");
 const mem = std.mem;
+// }}}
 
 pub fn resolve_format(alloc: mem.Allocator, format: []const u8, args: anytype, comptime handler: fn (alloc: mem.Allocator, args: anytype, ch: u8) ?[]u8) !std.ArrayList(u8) {
     var buff = std.ArrayList(u8).init(alloc);

@@ -1,15 +1,19 @@
+// vim:fileencoding=utf-8:foldmethod=marker
+// imports {{{
 const std = @import("std");
 const utils = @import("utils.zig");
+// }}}
+// globals {{{
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
 const formatStr = pomodoro_timer.formatStr;
-
-pub const MAX_REQ_LEN = utils.intLen(std.meta.fields(Request).len) + 1;
-
 const pvz_dir_base = std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz", std.fs.path.sep });
-fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
+pub const MAX_REQ_LEN = utils.intLen(std.meta.fields(Request).len) + 1;
+// }}}
+
+pub fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
     std.log.debug("on_start callback! timer.mode: {}", .{timer.mode});
     const name = switch (timer.mode) {
         .Pomodoro => "on-pomodoro-start.sh",
@@ -29,7 +33,7 @@ fn on_end(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u
     try run_script(alloc, config_dir, name);
 }
 
-inline fn run_script(alloc: std.mem.Allocator, config_dir: []const u8, name: []const u8) !void {
+fn run_script(alloc: std.mem.Allocator, config_dir: []const u8, name: []const u8) !void {
     const script_file = try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ config_dir, pvz_dir_base, name });
     defer alloc.free(script_file);
 

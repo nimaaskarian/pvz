@@ -1,6 +1,8 @@
+// vim:fileencoding=utf-8:foldmethod=marker
+// imports{{{
 const std = @import("std");
 const mem = std.mem;
-const except = std.testing.expect;
+// }}}
 
 pub const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
@@ -51,7 +53,6 @@ pub const PomodoroTimer = struct {
     }
 
     pub fn cycle_mode(self: *PomodoroTimer) !void {
-        try except(self.session_count >= 0);
         switch (self.mode) {
             TimerMode.LongBreak => {
                 std.log.debug("long break end. reseting", .{});
