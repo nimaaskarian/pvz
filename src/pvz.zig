@@ -4,6 +4,7 @@ const std = @import("std");
 const utils = @import("utils.zig");
 // }}}
 // globals {{{
+const mem = std.mem;
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const pomodoro_timer = @import("timer.zig");
@@ -13,7 +14,7 @@ const pvz_dir_base = std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz
 pub const MAX_REQ_LEN = utils.intLen(std.meta.fields(Request).len) + 1;
 // }}}
 
-pub fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
+pub fn on_start(alloc: mem.Allocator, timer: *const PomodoroTimer, config_dir: []const u8) !void {
     std.log.debug("on_start callback! timer.mode: {}", .{timer.mode});
     const name = switch (timer.mode) {
         .Pomodoro => "on-pomodoro-start.sh",
@@ -23,7 +24,7 @@ pub fn on_start(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []c
     try run_script(alloc, config_dir, name);
 }
 
-fn on_end(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
+fn on_end(alloc: mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
     std.log.debug("on_end callback! timer.mode: {}", .{timer.mode});
     const name = switch (timer.mode) {
         .Pomodoro => "on-pomodoro-end.sh",
@@ -33,7 +34,7 @@ fn on_end(alloc: std.mem.Allocator, timer: *PomodoroTimer, config_dir: []const u
     try run_script(alloc, config_dir, name);
 }
 
-fn run_script(alloc: std.mem.Allocator, config_dir: []const u8, name: []const u8) !void {
+fn run_script(alloc: mem.Allocator, config_dir: []const u8, name: []const u8) !void {
     const script_file = try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ config_dir, pvz_dir_base, name });
     defer alloc.free(script_file);
 
@@ -42,7 +43,7 @@ fn run_script(alloc: std.mem.Allocator, config_dir: []const u8, name: []const u8
     try proc.spawn();
 }
 
-fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator, format: []const u8) void {
+fn on_tick(timer: *PomodoroTimer, alloc: mem.Allocator, format: []const u8) void {
     const value = utils.resolve_format(alloc, format, timer, formatStr) catch {
         return;
     };
@@ -52,11 +53,8 @@ fn on_tick(timer: *PomodoroTimer, alloc: std.mem.Allocator, format: []const u8) 
     out.print("{s}\n", .{value.items}) catch {};
 }
 
-pub fn timerLoop(timer: *PomodoroTimer, format: []const u8, config_dir: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const alloc = gpa.allocator();
-
+pub fn timerLoop(alloc: mem.Allocator, timer: *PomodoroTimer, format: []const u8, config_dir: []const u8) !void {
+    try on_start(alloc, timer, config_dir);
     while (true) {
         std.time.sleep(std.time.ns_per_s);
         if (timer.seconds != 0 and !timer.paused) {
@@ -103,7 +101,10 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, forma
         .current_reset => timer.update_duration(),
         .pause => timer.paused = true,
         .unpause => timer.paused = false,
-        .reset => timer.init(),
+        .reset => {
+            timer.init();
+            try on_start(alloc, timer, config_dir);
+        },
         .seek => {
             timer.seek(5);
             on_tick(timer, alloc, format);

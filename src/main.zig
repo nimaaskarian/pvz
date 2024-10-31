@@ -32,9 +32,10 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
     const params = comptime clap.parseParamsComptime(
+        \\-h, --help                        Display this help and exit
         \\-f, --format <str>                Format to show the timer
-        \\-h, --help                        Display this help and exit.
         \\-p, --port <u16>                  Port to connect to
+        \\-P, --paused                      Pomodoro is paused by default
     );
     const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
     defer alloc.free(config_dir);
@@ -66,10 +67,9 @@ pub fn main() !void {
 
     defer server.deinit();
 
-    var timer = PomodoroTimer{};
+    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
     timer.init();
-    try pvz.on_start(alloc, &timer, config_dir);
-    _ = try std.Thread.spawn(.{}, timerLoop, .{ &timer, format, config_dir });
+    _ = try std.Thread.spawn(.{}, timerLoop, .{ alloc, &timer, format, config_dir });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
