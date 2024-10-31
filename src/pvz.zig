@@ -55,6 +55,8 @@ fn on_tick(timer: *PomodoroTimer, alloc: mem.Allocator, format: []const u8) void
 
 pub fn timerLoop(alloc: mem.Allocator, timer: *PomodoroTimer, format: []const u8, config_dir: []const u8) !void {
     try on_start(alloc, timer, config_dir);
+    if (timer.paused) try run_script(alloc, config_dir, "on-pause.sh");
+
     while (true) {
         std.time.sleep(std.time.ns_per_s);
         if (timer.seconds != 0 and !timer.paused) {
@@ -99,8 +101,14 @@ pub fn handleRequest(req: Request, timer: *PomodoroTimer, writer: anytype, forma
             try on_start(alloc, timer, config_dir);
         },
         .current_reset => timer.update_duration(),
-        .pause => timer.paused = true,
-        .unpause => timer.paused = false,
+        .pause => {
+            timer.paused = true;
+            try run_script(alloc, config_dir, "on-pause.sh");
+        },
+        .unpause => {
+            timer.paused = false;
+            try run_script(alloc, config_dir, "on-unpause.sh");
+        },
         .reset => {
             timer.init();
             try on_start(alloc, timer, config_dir);
