@@ -9,9 +9,7 @@ const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
-const formatStr = pomodoro_timer.format_str;
-const pvz_dir_base = std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz", std.fs.path.sep });
-pub const MAX_REQ_LEN = utils.int_len(std.meta.fields(Request).len) + 1;
+pub const max_req_len = utils.int_len(std.meta.fields(Request).len) + 1;
 // }}}
 
 pub fn on_start(alloc: mem.Allocator, timer: *const PomodoroTimer, config_dir: []const u8) !void {
@@ -38,6 +36,7 @@ fn on_end(alloc: mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !
 }
 
 fn run_script(alloc: mem.Allocator, config_dir: []const u8, name: []const u8) !void {
+    const pvz_dir_base = comptime std.fmt.comptimePrint("{c}{s}{c}", .{ std.fs.path.sep, "pvz", std.fs.path.sep });
     const script_file = try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ config_dir, pvz_dir_base, name });
     defer alloc.free(script_file);
 
@@ -47,7 +46,7 @@ fn run_script(alloc: mem.Allocator, config_dir: []const u8, name: []const u8) !v
 }
 
 fn on_tick(timer: *PomodoroTimer, alloc: mem.Allocator, format: []const u8) void {
-    const value = utils.resolve_format(alloc, format, timer, formatStr) catch {
+    const value = utils.resolve_format(alloc, format, timer, pomodoro_timer.format_str) catch {
         return;
     };
     defer value.deinit();

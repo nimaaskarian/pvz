@@ -4,15 +4,11 @@ const std = @import("std");
 const clap = @import("clap");
 const utils = @import("utils.zig");
 const known_folders = @import("known-folders");
+const pvz = @import("pvz.zig");
 // }}}
 // globals {{{
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
-const pvz = @import("pvz.zig");
-const timer_loop = pvz.timer_loop;
-const Request = pvz.Request;
-const handle_request = pvz.handle_request;
-pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -52,7 +48,7 @@ pub fn main() !void {
     if (res.args.help != 0)
         return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
 
-    var buff: [MAX_REQ_LEN]u8 = undefined;
+    var buff: [pvz.max_req_len]u8 = undefined;
     const port: u16 = res.args.port orelse 6660;
 
     const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
@@ -68,7 +64,7 @@ pub fn main() !void {
 
     var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
     timer.init();
-    _ = try std.Thread.spawn(.{}, timer_loop, .{ alloc, &timer, format, config_dir });
+    _ = try std.Thread.spawn(.{}, pvz.timer_loop, .{ alloc, &timer, format, config_dir });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
@@ -81,9 +77,9 @@ pub fn main() !void {
         } orelse continue;
 
         const request_int = try std.fmt.parseInt(u16, msg, 10);
-        if (std.meta.intToEnum(Request, request_int)) |request| {
+        if (std.meta.intToEnum(pvz.Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handle_request(request, &timer, &client_writer, format, config_dir)) break;
+            if (try pvz.handle_request(request, &timer, &client_writer, format, config_dir)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});
