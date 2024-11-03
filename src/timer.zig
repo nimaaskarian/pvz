@@ -43,6 +43,7 @@ pub const PomodoroTimer = struct {
     pub fn tick(
         self: *PomodoroTimer,
     ) !void {
+        std.time.sleep(std.time.ns_per_s);
         if (self.seconds == 0) {
             try self.cycle_mode();
         } else {

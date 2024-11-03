@@ -64,7 +64,6 @@ fn initTimer(alloc: mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8
 pub fn timerLoop(alloc: mem.Allocator, timer: *PomodoroTimer, format: []const u8, config_dir: []const u8) !void {
     try initTimer(alloc, timer, config_dir);
     while (true) {
-        std.time.sleep(std.time.ns_per_s);
         if (timer.seconds != 0 and !timer.paused) {
             on_tick(timer, alloc, format);
         }
