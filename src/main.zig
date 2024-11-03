@@ -9,10 +9,9 @@ const known_folders = @import("known-folders");
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
 const pvz = @import("pvz.zig");
-const getServer = pvz.getServer;
-const timerLoop = pvz.timerLoop;
+const timer_loop = pvz.timer_loop;
 const Request = pvz.Request;
-const handleRequest = pvz.handleRequest;
+const handle_request = pvz.handle_request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 
 const except = std.testing.expect;
@@ -69,7 +68,7 @@ pub fn main() !void {
 
     var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
     timer.init();
-    _ = try std.Thread.spawn(.{}, timerLoop, .{ alloc, &timer, format, config_dir });
+    _ = try std.Thread.spawn(.{}, timer_loop, .{ alloc, &timer, format, config_dir });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
@@ -84,7 +83,7 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try handleRequest(request, &timer, &client_writer, format, config_dir)) break;
+            if (try handle_request(request, &timer, &client_writer, format, config_dir)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});

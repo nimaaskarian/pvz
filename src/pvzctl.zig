@@ -8,12 +8,11 @@ const clap = @import("clap");
 // globals {{{
 const net = std.net;
 const debug = std.debug;
-const getServer = pvz.getServer;
 pub const Request = pvz.Request;
 pub const MAX_REQ_LEN = pvz.MAX_REQ_LEN;
 const pomodoro_timer = @import("timer.zig");
 const PomodoroTimer = pomodoro_timer.PomodoroTimer;
-const formatStr = pomodoro_timer.formatStr;
+const format_str = pomodoro_timer.format_str;
 const parsers = .{ .REQUEST = clap.parsers.enumeration(Request), .u16 = clap.parsers.int(u16, 0), .str = clap.parsers.string };
 // }}}
 
@@ -72,7 +71,7 @@ pub fn main() !void {
                 }
             }
             const format = res.args.format orelse "%t %p";
-            const timer_str = try utils.resolve_format(alloc, format, timer, formatStr);
+            const timer_str = try utils.resolve_format(alloc, format, timer, format_str);
             defer timer_str.deinit();
             const out = std.io.getStdOut().writer();
             out.print("{s}\n", .{timer_str.items}) catch {};

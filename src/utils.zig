@@ -27,7 +27,7 @@ pub fn resolve_format(alloc: mem.Allocator, format: []const u8, args: anytype, c
     return buff;
 }
 
-pub fn intLen(in: anytype) usize {
+pub fn int_len(in: anytype) usize {
     var n = in;
     var count = 0;
     while (n != 0) : (count += 1) {

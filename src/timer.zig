@@ -105,18 +105,18 @@ pub const PomodoroTimer = struct {
     }
 };
 
-fn allocPrintCatch(alloc: mem.Allocator, comptime format: []const u8, args: anytype) ?[]u8 {
+fn alloc_print_catch(alloc: mem.Allocator, comptime format: []const u8, args: anytype) ?[]u8 {
     return std.fmt.allocPrint(alloc, format, args) catch {
         return null;
     };
 }
 
-pub fn formatStr(alloc: std.mem.Allocator, args: anytype, ch: u8) ?[]u8 {
+pub fn format_str(alloc: std.mem.Allocator, args: anytype, ch: u8) ?[]u8 {
     return switch (ch) {
-        't' => allocPrintCatch(alloc, "{s}", .{args}),
-        'p' => allocPrintCatch(alloc, "{}", .{args.session_count}),
-        'm' => allocPrintCatch(alloc, "{s}", .{@tagName(args.mode)}),
-        's' => allocPrintCatch(alloc, "{}", .{args.seconds}),
+        't' => alloc_print_catch(alloc, "{s}", .{args}),
+        'p' => alloc_print_catch(alloc, "{}", .{args.session_count}),
+        'm' => alloc_print_catch(alloc, "{s}", .{@tagName(args.mode)}),
+        's' => alloc_print_catch(alloc, "{}", .{args.seconds}),
         else => null,
     };
 }
