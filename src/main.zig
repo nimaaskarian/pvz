@@ -23,7 +23,7 @@ const AppOptions = struct {
 
 // TODO: clean the function :_(
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = comptime std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
     const params = comptime clap.parseParamsComptime(
@@ -57,20 +57,19 @@ pub fn main() !void {
         std.log.err("Port {} is already in use. Quitting...", .{port});
         std.process.exit(1);
     };
-    std.log.info("Server is listening to port {d}", .{port});
-    const format = res.args.format orelse "%m %t %p";
-
     defer server.deinit();
+    std.log.info("Server is listening to port {d}", .{port});
 
     var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
     timer.init();
+    const format = res.args.format orelse "%m %t %p";
+
     _ = try std.Thread.spawn(.{}, pvz.timer_loop, .{ alloc, &timer, format, config_dir });
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
-        const client_reader = client.stream.reader();
         const client_writer = client.stream.writer();
-        const msg = client_reader.readUntilDelimiterOrEof(&buff, '\n') catch {
+        const msg = client.stream.reader().readUntilDelimiterOrEof(&buff, '\n') catch {
             try client_writer.writeAll("TOO LONG\n");
             std.log.err("The message recieved is too long.", .{});
             continue;
@@ -79,7 +78,7 @@ pub fn main() !void {
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(pvz.Request, request_int)) |request| {
             std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try pvz.handle_request(request, &timer, &client_writer, format, config_dir)) break;
+            if (try pvz.handle_request(alloc, request, &timer, &client_writer, format, config_dir)) break;
         } else |err| {
             std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
             std.log.debug("Request parse error: {}", .{err});

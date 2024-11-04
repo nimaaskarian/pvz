@@ -92,12 +92,9 @@ pub const Request = enum {
     sub_session,
 };
 
-pub fn handle_request(req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8, config_dir: []const u8) !bool {
+pub fn handle_request(alloc: mem.Allocator, req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8, config_dir: []const u8) !bool {
     var print_ok = true;
     var break_loop = false;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
     switch (req) {
         .toggle => {
             if (timer.paused) {
