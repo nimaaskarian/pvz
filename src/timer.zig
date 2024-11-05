@@ -2,6 +2,7 @@
 // imports{{{
 const std = @import("std");
 const mem = std.mem;
+const log = std.log;
 // }}}
 
 pub const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
@@ -56,21 +57,21 @@ pub const PomodoroTimer = struct {
     pub fn cycle_mode(self: *PomodoroTimer) !void {
         switch (self.mode) {
             TimerMode.LongBreak => {
-                std.log.debug("long break end. reseting", .{});
+                log.debug("long break end. reseting", .{});
                 self.init();
             },
             TimerMode.ShortBreak => {
-                std.log.debug("cycle to pomodoro", .{});
+                log.debug("cycle to pomodoro", .{});
                 self.mode = TimerMode.Pomodoro;
             },
             TimerMode.Pomodoro => {
-                std.log.debug("cycle to short break", .{});
+                log.debug("cycle to short break", .{});
                 self.mode = TimerMode.ShortBreak;
                 self.session_count -= 1;
             },
         }
         if (self.session_count <= 0) {
-            std.log.debug("count=0 -> cycle to long break", .{});
+            log.debug("count=0 -> cycle to long break", .{});
             self.mode = TimerMode.LongBreak;
         }
         self.update_duration();
@@ -106,9 +107,7 @@ pub const PomodoroTimer = struct {
 };
 
 fn alloc_print_catch(alloc: mem.Allocator, comptime format: []const u8, args: anytype) ?[]u8 {
-    return std.fmt.allocPrint(alloc, format, args) catch {
-        return null;
-    };
+    return std.fmt.allocPrint(alloc, format, args) catch null;
 }
 
 pub fn format_str(alloc: std.mem.Allocator, args: anytype, ch: u8) ?[]u8 {

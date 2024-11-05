@@ -7,6 +7,7 @@ const known_folders = @import("known-folders");
 const pvz = @import("pvz.zig");
 // }}}
 // globals {{{
+const log = std.log;
 const PomodoroTimer = @import("timer.zig").PomodoroTimer;
 const PomodoroTimerConfig = @import("timer.zig").PomodoroTimerConfig;
 
@@ -54,34 +55,35 @@ pub fn main() !void {
     const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
     var server = addr.listen(.{}) catch |err| {
         try expectEqual(error.AddressInUse, err);
-        std.log.err("Port {} is already in use. Quitting...", .{port});
+        log.err("Port {} is already in use. Quitting...", .{port});
         std.process.exit(1);
     };
     defer server.deinit();
-    std.log.info("Server is listening to port {d}", .{port});
+    log.info("Server is listening to port {d}", .{port});
 
     var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
     timer.init();
     const format = res.args.format orelse "%m %t %p";
 
     _ = try std.Thread.spawn(.{}, pvz.timer_loop, .{ alloc, &timer, format, config_dir });
-    while (true) {
+    var should_break = false;
+    while (!should_break) {
         var client = try server.accept();
         defer client.stream.close();
         const client_writer = client.stream.writer();
         const msg = client.stream.reader().readUntilDelimiterOrEof(&buff, '\n') catch {
             try client_writer.writeAll("TOO LONG\n");
-            std.log.err("The message recieved is too long.", .{});
+            log.err("The message recieved is too long.", .{});
             continue;
         } orelse continue;
 
         const request_int = try std.fmt.parseInt(u16, msg, 10);
         if (std.meta.intToEnum(pvz.Request, request_int)) |request| {
-            std.log.info("Message recieved: \"{s}\"", .{@tagName(request)});
-            if (try pvz.handle_request(alloc, request, &timer, &client_writer, format, config_dir)) break;
+            log.info("Message recieved: \"{s}\"", .{@tagName(request)});
+            should_break = try pvz.handle_request(alloc, request, &timer, &client_writer, format, config_dir);
         } else |err| {
-            std.log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
-            std.log.debug("Request parse error: {}", .{err});
+            log.info("Message ignored \"{}\"", .{std.zig.fmtEscapes(msg)});
+            log.debug("Request parse error: {}", .{err});
             const response = try std.fmt.allocPrint(alloc, "Invalid request number {}\n", .{request_int});
             defer alloc.free(response);
             try client_writer.writeAll(response);

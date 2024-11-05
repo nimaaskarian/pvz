@@ -16,8 +16,8 @@ const parsers = .{ .REQUEST = clap.parsers.enumeration(pvz.Request), .u16 = clap
 
 // TODO: clean the damn function
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+    var gpa = comptime std.heap.GeneralPurposeAllocator(.{}){};
+    defer debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
     const params = comptime clap.parseParamsComptime(
         \\-r, --request <REQUEST>...        Request to be sent

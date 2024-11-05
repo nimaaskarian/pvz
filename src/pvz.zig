@@ -5,6 +5,7 @@ const utils = @import("utils.zig");
 // }}}
 // globals {{{
 const mem = std.mem;
+const log = std.log;
 const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const pomodoro_timer = @import("timer.zig");
@@ -13,7 +14,7 @@ pub const max_req_len = utils.int_len(std.meta.fields(Request).len) + 1;
 // }}}
 
 pub fn on_start(alloc: mem.Allocator, timer: *const PomodoroTimer, config_dir: []const u8) !void {
-    std.log.debug("on_start callback! timer.mode: {}", .{timer.mode});
+    log.debug("on_start callback! timer.mode: {}", .{timer.mode});
     const name = switch (timer.mode) {
         .Pomodoro => "on-pomodoro-start.sh",
         .ShortBreak => "on-short-break-start.sh",
@@ -23,15 +24,15 @@ pub fn on_start(alloc: mem.Allocator, timer: *const PomodoroTimer, config_dir: [
 }
 
 fn on_end(alloc: mem.Allocator, timer: *PomodoroTimer, config_dir: []const u8) !void {
-    std.log.debug("on_end callback! timer.mode: {}", .{timer.mode});
+    log.debug("on_end callback! timer.mode: {}", .{timer.mode});
     const name = switch (timer.mode) {
         .Pomodoro => "on-pomodoro-end.sh",
         .ShortBreak => "on-short-break-end.sh",
-        .LongBreak => "on-long-break-end.sh",
+        .LongBreak => brk: {
+            try init_timer(alloc, timer, config_dir);
+            break :brk "on-long-break-end.sh";
+        },
     };
-    if (timer.mode == .LongBreak) {
-        try init_timer(alloc, timer, config_dir);
-    }
     try run_script(alloc, config_dir, name);
 }
 
@@ -137,7 +138,6 @@ pub fn handle_request(alloc: mem.Allocator, req: Request, timer: *PomodoroTimer,
             const msg = try std.fmt.allocPrint(alloc, "{}\n{}\n{}\n{}\n", .{ timer.seconds, timer.session_count, @intFromBool(timer.paused), @intFromEnum(timer.mode) });
             defer alloc.free(msg);
             try writer.writeAll(msg);
-            return break_loop;
         },
         .add_session => {
             timer.session_count += 1;
