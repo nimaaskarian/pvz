@@ -94,8 +94,6 @@ pub const Request = enum {
 };
 
 pub fn handle_request(alloc: mem.Allocator, req: Request, timer: *PomodoroTimer, writer: anytype, format: []const u8, config_dir: []const u8) !bool {
-    var print_ok = true;
-    var break_loop = false;
     switch (req) {
         .toggle => {
             if (timer.paused) {
@@ -131,10 +129,10 @@ pub fn handle_request(alloc: mem.Allocator, req: Request, timer: *PomodoroTimer,
             on_tick(timer, alloc, format);
         },
         .quit => {
-            break_loop = true;
+            try writer.writeAll("OK\n");
+            return true;
         },
         .get_timer => {
-            print_ok = false;
             const msg = try std.fmt.allocPrint(alloc, "{}\n{}\n{}\n{}\n", .{ timer.seconds, timer.session_count, @intFromBool(timer.paused), @intFromEnum(timer.mode) });
             defer alloc.free(msg);
             try writer.writeAll(msg);
@@ -148,8 +146,6 @@ pub fn handle_request(alloc: mem.Allocator, req: Request, timer: *PomodoroTimer,
             }
         },
     }
-    if (print_ok) {
-        try writer.writeAll("OK\n");
-    }
-    return break_loop;
+    try writer.writeAll("OK\n");
+    return false;
 }

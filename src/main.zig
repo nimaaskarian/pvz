@@ -31,7 +31,7 @@ pub fn main() !void {
         \\-h, --help                        Display this help and exit
         \\-f, --format <str>                Format to show the timer
         \\-p, --port <u16>                  Port to connect to
-        \\-P, --paused                      Pomodoro is paused by default
+        \\-P, --unpaused                    Pomodoro is unpaused by default
     );
     const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
     defer alloc.free(config_dir);
@@ -59,9 +59,10 @@ pub fn main() !void {
         std.process.exit(1);
     };
     defer server.deinit();
-    log.info("Server is listening to port {d}", .{port});
+    defer std.debug.print("SERVER DEINIT\n", .{});
+    std.log.info("Server is listening to port {d}", .{port});
 
-    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
+    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.unpaused == 0 } };
     timer.init();
     const format = res.args.format orelse "%m %t %p";
 
@@ -70,6 +71,7 @@ pub fn main() !void {
     while (!should_break) {
         var client = try server.accept();
         defer client.stream.close();
+        defer std.debug.print("CLIENT STREAM CLOSED\n", .{});
         const client_writer = client.stream.writer();
         const msg = client.stream.reader().readUntilDelimiterOrEof(&buff, '\n') catch {
             try client_writer.writeAll("TOO LONG\n");
