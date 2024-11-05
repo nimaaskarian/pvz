@@ -58,6 +58,7 @@ pub fn main() !void {
         std.process.exit(1);
     };
     defer server.deinit();
+    defer std.debug.print("SERVER DEINIT\n", .{});
     std.log.info("Server is listening to port {d}", .{port});
 
     var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
@@ -68,6 +69,7 @@ pub fn main() !void {
     while (true) {
         var client = try server.accept();
         defer client.stream.close();
+        defer std.debug.print("CLIENT STREAM CLOSED\n", .{});
         const client_writer = client.stream.writer();
         const msg = client.stream.reader().readUntilDelimiterOrEof(&buff, '\n') catch {
             try client_writer.writeAll("TOO LONG\n");

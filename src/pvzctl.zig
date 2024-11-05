@@ -54,8 +54,10 @@ pub fn main() !void {
         if (request == .get_timer) {
             var timer = PomodoroTimer{};
             const reader = stream.reader();
-            var index: usize = 0;
-            while (try reader.readUntilDelimiterOrEofAlloc(alloc, '\n', 65536)) |line| : (index += 1) {
+            for (0..4) |index| {
+                const line = try reader.readUntilDelimiterOrEofAlloc(alloc, '\n', 65536) orelse {
+                    continue;
+                };
                 defer alloc.free(line);
                 switch (index) {
                     0 => timer.seconds = try std.fmt.parseInt(usize, line, 10),
