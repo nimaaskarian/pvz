@@ -30,7 +30,7 @@ pub fn main() !void {
         \\-h, --help                        Display this help and exit
         \\-f, --format <str>                Format to show the timer
         \\-p, --port <u16>                  Port to connect to
-        \\-P, --paused                      Pomodoro is paused by default
+        \\-P, --unpaused                    Pomodoro is unpaused by default
     );
     const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
     defer alloc.free(config_dir);
@@ -61,7 +61,7 @@ pub fn main() !void {
     defer std.debug.print("SERVER DEINIT\n", .{});
     std.log.info("Server is listening to port {d}", .{port});
 
-    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.paused != 0 } };
+    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.unpaused == 0 } };
     timer.init();
     const format = res.args.format orelse "%m %t %p";
 

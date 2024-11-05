@@ -56,7 +56,7 @@ pub fn main() !void {
             const reader = stream.reader();
             for (0..4) |index| {
                 const line = try reader.readUntilDelimiterOrEofAlloc(alloc, '\n', 65536) orelse {
-                    continue;
+                    break;
                 };
                 defer alloc.free(line);
                 switch (index) {
