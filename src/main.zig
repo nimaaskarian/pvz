@@ -32,6 +32,7 @@ pub fn main() !void {
         \\-f, --format <str>                Format to show the timer
         \\-p, --port <u16>                  Port to connect to
         \\-P, --unpaused                    Pomodoro is unpaused by default
+        \\<str>                             IP to listen to
     );
     const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
     defer alloc.free(config_dir);
@@ -52,7 +53,10 @@ pub fn main() !void {
     var buff: [pvz.max_req_len]u8 = undefined;
     const port: u16 = res.args.port orelse 6660;
 
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
+    const addr = utils.resolve_ip(utils.get([]const u8, res.positionals, 0), port) catch {
+        std.log.err("IP is wrong", .{});
+        return;
+    };
     var server = addr.listen(.{}) catch |err| {
         try expectEqual(error.AddressInUse, err);
         log.err("Port {} is already in use. Quitting...", .{port});

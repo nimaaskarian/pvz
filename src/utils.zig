@@ -1,7 +1,9 @@
 // vim:fileencoding=utf-8:foldmethod=marker
 // imports{{{
 const std = @import("std");
+const builtin = @import("builtin");
 const mem = std.mem;
+const net = std.net;
 // }}}
 
 pub fn resolve_format(alloc: mem.Allocator, format: []const u8, args: anytype, comptime handler: fn (alloc: mem.Allocator, args: anytype, ch: u8) ?[]u8) !std.ArrayList(u8) {
@@ -34,4 +36,19 @@ pub fn int_len(in: anytype) usize {
         n /= 10;
     }
     return count;
+}
+
+const parseFunction = if (builtin.target.os.tag == .windows) net.Address.parseIp else net.Address.resolveIp;
+pub fn resolve_ip(may_ip: ?[]const u8, port: u16) !net.Address {
+    if (may_ip) |ip| {
+        return parseFunction(ip, port);
+    }
+    return net.Address.initIp4(.{ 127, 0, 0, 1 }, port);
+}
+
+pub fn get(comptime T: type, arr: []const T, index: comptime_int) ?T {
+    if (index < arr.len) {
+        return arr[index];
+    }
+    return null;
 }

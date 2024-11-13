@@ -24,6 +24,7 @@ pub fn main() !void {
         \\-f, --format <str>                Format to show the timer
         \\-h, --help                        Display this help and exit.
         \\-p, --port <u16>                  Port to connect to
+        \\<str>                             IP to connect to
     );
     var diag = clap.Diagnostic{};
     var res = clap.parse(clap.Help, &params, parsers, .{
@@ -44,7 +45,10 @@ pub fn main() !void {
         return;
     }
 
-    const addr = net.Address.initIp4(.{ 127, 0, 0, 1 }, res.args.port orelse 6660);
+    const addr = utils.resolve_ip(utils.get([]const u8, res.positionals, 0), res.args.port orelse 6660) catch {
+        std.log.err("IP is wrong", .{});
+        return;
+    };
     var buff: [pvz.max_req_len]u8 = undefined;
     for (res.args.request) |request| {
         const stream = try net.tcpConnectToAddress(addr);
