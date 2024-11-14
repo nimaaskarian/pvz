@@ -15,13 +15,6 @@ const except = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 // }}}
 
-const AppOptions = struct {
-    flush: bool,
-    new_line_on_quit: bool,
-    run_socket: bool,
-    format: [*]u8,
-};
-
 // TODO: clean the function :_(
 pub fn main() !void {
     var gpa = comptime std.heap.GeneralPurposeAllocator(.{}){};
@@ -32,6 +25,10 @@ pub fn main() !void {
         \\-f, --format <str>                Format to show the timer
         \\-p, --port <u16>                  Port to connect to
         \\-P, --unpaused                    Pomodoro is unpaused by default
+        \\-m, --pomodoro <u16>              Pomodoro seconds
+        \\-s, --short_break <u16>           Short break seconds
+        \\-l, --long_break <u16>            Long break seconds
+        \\-S, --sessions <u16>              Number of pomodoro sessions
         \\<str>                             IP to listen to
     );
     const config_dir = try known_folders.getPath(alloc, known_folders.KnownFolder.local_configuration) orelse ".";
@@ -66,7 +63,14 @@ pub fn main() !void {
     defer std.debug.print("SERVER DEINIT\n", .{});
     std.log.info("Server is listening to port {d}", .{port});
 
-    var timer = PomodoroTimer{ .config = PomodoroTimerConfig{ .paused = res.args.unpaused == 0 } };
+    const config = PomodoroTimerConfig{
+        .paused = res.args.unpaused == 0,
+        .pomodoro_seconds = res.args.pomodoro,
+        .short_break_seconds = res.args.short_break,
+        .long_break_seconds = res.args.long_break,
+        .session_count = res.args.sessions,
+    };
+    var timer = PomodoroTimer{ .config = config };
     timer.init();
     const format = res.args.format orelse "%m %t %p";
 

@@ -8,10 +8,10 @@ const log = std.log;
 pub const TimerMode = enum { Pomodoro, ShortBreak, LongBreak };
 
 pub const PomodoroTimerConfig = struct {
-    session_count: u16 = 4,
-    long_break_seconds: u16 = 30 * std.time.s_per_min,
-    short_break_seconds: u16 = 5 * std.time.s_per_min,
-    pomodoro_seconds: u16 = 25 * std.time.s_per_min,
+    session_count: ?u16 = null,
+    long_break_seconds: ?u16 = null,
+    short_break_seconds: ?u16 = null,
+    pomodoro_seconds: ?u16 = null,
     paused: bool = false,
 };
 
@@ -23,7 +23,7 @@ pub const PomodoroTimer = struct {
     session_count: usize = 0,
 
     pub fn init(self: *PomodoroTimer) void {
-        self.session_count = self.config.session_count;
+        self.session_count = self.config.session_count orelse 4;
         self.paused = self.config.paused;
         self.mode = TimerMode.Pomodoro;
         self.update_duration();
@@ -79,9 +79,9 @@ pub const PomodoroTimer = struct {
 
     pub fn update_duration(self: *PomodoroTimer) void {
         self.seconds = switch (self.mode) {
-            TimerMode.Pomodoro => self.config.pomodoro_seconds,
-            TimerMode.ShortBreak => self.config.short_break_seconds,
-            TimerMode.LongBreak => self.config.long_break_seconds,
+            TimerMode.Pomodoro => self.config.pomodoro_seconds orelse 25 * std.time.s_per_min,
+            TimerMode.ShortBreak => self.config.short_break_seconds orelse 5 * std.time.s_per_min,
+            TimerMode.LongBreak => self.config.long_break_seconds orelse 30 * std.time.s_per_min,
         };
     }
 
